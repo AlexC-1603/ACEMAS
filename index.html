@@ -31,6 +31,11 @@
     .row-inputs { display: flex; gap: 10px; }
     .row-inputs > div { flex: 1; display: flex; flex-direction: column; gap: 10px; }
 
+    /* ── AWARENESS SCREEN ESTILOS ── */
+    #s-awareness { justify-content: center; align-items: center; padding: 40px 25px; overflow-y: auto; }
+    .aw-card { background: var(--white); border-radius: 24px; padding: 30px 25px; box-shadow: 0 4px 20px rgba(0,0,0,.05); text-align: justify; margin-bottom: 20px; }
+    .aw-card p { font-size: 14px; color: var(--charcoal); line-height: 1.6; }
+
     .main-layout { display: none; flex-direction: column; min-height: 100vh; }
     .main-layout.active { display: flex; }
     .tab-content { flex: 1; overflow-y: auto; padding-bottom: 80px; }
@@ -159,7 +164,6 @@
 </head>
 <body>
 
-<!-- ══ ONBOARDING ══ -->
 <div id="s-onboard" class="screen active">
   <div class="ob-emoji">🐾</div>
   <p class="ob-title">PawsConnect</p>
@@ -196,7 +200,18 @@
   </div>
 </div>
 
-<!-- ══ MAIN LAYOUT ══ -->
+<div id="s-awareness" class="screen">
+  <h1 style="font-family: 'Fraunces', serif; font-size: 26px; color: var(--terra); text-align: center; margin-bottom: 20px;">Antes de continuar...</h1>
+  <div class="aw-card">
+    <p>
+      Adoptar un animal de compañía es un acto de amor inmenso, pero por encima de todo, es un compromiso de por vida que no debe tomarse a la ligera. Un perro o un gato dependerá de ti durante muchos años, requiriendo no solo cariño, sino también tiempo diario para su atención, paciencia para su adaptación y recursos económicos para garantizar su alimentación y salud veterinaria.<br><br>
+      Antes de abrirle las puertas de tu hogar, reflexiona honestamente si estás dispuesto a cuidarlo a través de mudanzas, cambios de rutina y durante su vejez, recordando siempre que no son juguetes ni regalos temporales.<br><br>
+      Si después de evaluarlo decides que estás verdaderamente preparado, dar el paso cambiará su mundo y el tuyo; abre tu corazón y tu hogar a conciencia para que esa merecida segunda oportunidad sea para siempre.
+    </p>
+  </div>
+  <button class="ob-btn" style="padding: 18px;" onclick="aceptarConcientizacion()">Estoy de acuerdo</button>
+</div>
+
 <div id="main-layout" class="main-layout">
   <div class="tab-content">
     <div id="tab-home" class="tab-pane active">
@@ -261,7 +276,6 @@
   </nav>
 </div>
 
-<!-- ══ OVERLAYS ══ -->
 <div id="s-profile" class="fs-overlay">
   <button class="back-btn" onclick="cerrarVista('s-profile')">←</button>
   <h1 class="fs-title">Mi Perfil</h1>
@@ -477,11 +491,6 @@
   let selDay = null, selTime = null, chatHist = [];
 
   // ── VARIABLES DE USUARIO ──
-  // userName  = alias/username (clave en BD y localStorage)
-  // userNombre = primer nombre real (del registro)
-  // userApellido = apellido real (del registro)
-  // userEmail  = correo
-  // userFoto   = foto de perfil en base64
   let userName = '';
   let userNombre = '';
   let userApellido = '';
@@ -491,8 +500,6 @@
   let currentPhotoBase64 = null;
   let calDate = new Date();
 
-  // ── CLAVE ÚNICA PARA GUARDAR DATOS EN LOCALSTORAGE ──
-  // Usamos 'pawsData_<userName>' para todo: favs, reqs, foto, nombre, apellido, email
   function getLocalData(user) {
     try {
       const raw = localStorage.getItem(`pawsData_${user}`);
@@ -528,6 +535,13 @@
     }
   }
 
+  // ── TRANSICIÓN DE CONCIENTIZACIÓN ──
+  function aceptarConcientizacion() {
+    document.getElementById('s-awareness').classList.remove('active');
+    document.getElementById('main-layout').classList.add('active');
+    cargar();
+  }
+
   // ── AUTENTICACIÓN PRINCIPAL ──
   async function auth(action) {
     let alias = '', pass = '', email = '', nombre = '', apellido = '';
@@ -550,10 +564,8 @@
     const btnId = action === 'login' ? 'btn-login' : 'btn-reg';
     document.getElementById(btnId).innerText = "Entrando...";
 
-    // Establecer userName para poder cargar los datos locales
     userName = alias;
 
-    // ── 1. Cargar datos locales guardados anteriormente ──
     const localData = getLocalData(userName);
     if (localData) {
       savedIds    = new Set(localData.favs || []);
@@ -567,14 +579,12 @@
       userNombre = ''; userApellido = ''; userEmail = '';
     }
 
-    // ── 2. Si es REGISTRO, los datos del formulario tienen prioridad ──
     if (action === 'register') {
       userNombre   = nombre;
       userApellido = apellido;
       userEmail    = email;
     }
 
-    // ── 3. Intentar sincronizar con el backend ──
     try {
       const endpoint = action === 'login' ? '/api/login' : '/api/register';
       const body = action === 'login'
@@ -587,7 +597,6 @@
       const data = await res.json();
 
       if (data.success && data.data) {
-        // El backend puede devolver el nombre/apellido real (lo usamos si está disponible)
         if (data.data.favorites)  savedIds     = new Set(data.data.favorites);
         if (data.data.requests)   solis        = data.data.requests;
         if (data.data.nombre)     userNombre   = data.data.nombre;
@@ -595,8 +604,6 @@
         if (data.data.email)      userEmail    = data.data.email;
         if (data.data.foto)       userFoto     = data.data.foto;
       } else if (!data.success && data.msg) {
-        // Login fallido en el backend (ej. contraseña incorrecta)
-        // Solo mostramos error si los datos locales tampoco existen (primera vez)
         if (!localData) {
           alert(data.msg || "Error al iniciar sesión.");
           document.getElementById(btnId).innerText = action === 'login' ? "Ingresar a mi cuenta" : "Crear mi cuenta";
@@ -605,7 +612,6 @@
       }
     } catch (err) {
       console.log("Modo offline: usando datos locales.");
-      // Si es login y no hay datos locales guardados, no podemos verificar credenciales
       if (action === 'login' && !localData) {
         alert("No se pudo conectar al servidor. Intenta de nuevo o verifica tu conexión.");
         document.getElementById(btnId).innerText = "Ingresar a mi cuenta";
@@ -613,7 +619,6 @@
       }
     }
 
-    // ── 4. Guardar TODO en localStorage (nombre/apellido incluidos) ──
     setLocalData(userName, {
       favs:     Array.from(savedIds),
       reqs:     solis,
@@ -624,27 +629,22 @@
     });
     localStorage.setItem('pawsUser', userName);
 
-    // ── 5. Actualizar UI con el nombre REAL del usuario ──
     actualizarUI();
 
     document.getElementById('s-onboard').classList.remove('active');
-    document.getElementById('main-layout').classList.add('active');
+    
+    // Aquí mostramos la pantalla de concientización antes de entrar a la app principal
+    document.getElementById('s-awareness').classList.add('active');
+    
     document.getElementById(btnId).innerText = action === 'login' ? "Ingresar a mi cuenta" : "Crear mi cuenta";
-
-    cargar();
   }
 
-  // ── ACTUALIZAR TODA LA UI CON LOS DATOS DEL USUARIO ──
   function actualizarUI() {
     const nombreCompleto = [userNombre, userApellido].filter(Boolean).join(' ');
 
-    // Saludo usa el nombre real, no el alias
     document.getElementById('greeting').innerText     = `Hola, ${userNombre || userName} 👋`;
-    // Perfil muestra nombre + apellido reales
     document.getElementById('prof-name').innerText   = nombreCompleto || userName;
-    // Alias se muestra separado con @
     document.getElementById('prof-alias').innerText  = `@${userName}`;
-    // Chat saluda por nombre real
     document.getElementById('chat-welcome').innerText =
       `¡Hola ${userNombre || userName}! Soy tu guía. ¿Buscas un perrito o un gatito?`;
 
@@ -666,17 +666,14 @@
     else badge.classList.remove('show');
   }
 
-  // ── EDITAR PERFIL ──
   function abrirEditarPerfil() {
-    // Mostrar nombre y apellido REALES (no editables)
     document.getElementById('ep-nombre').value  = userNombre;
     document.getElementById('ep-apellido').value = userApellido;
-    // El alias SÍ es editable
     document.getElementById('ep-alias').value   = userName;
 
     editPhotoBase64 = userFoto;
     if (editPhotoBase64) {
-      document.getElementById('edit-photo-preview').src           = editPhotoBase64;
+      document.getElementById('edit-photo-preview').src             = editPhotoBase64;
       document.getElementById('edit-photo-preview').style.display = 'block';
       document.getElementById('edit-photo-text').style.display    = 'none';
     } else {
@@ -692,7 +689,7 @@
       const reader = new FileReader();
       reader.onload = function(e) {
         editPhotoBase64 = e.target.result;
-        document.getElementById('edit-photo-preview').src           = editPhotoBase64;
+        document.getElementById('edit-photo-preview').src             = editPhotoBase64;
         document.getElementById('edit-photo-preview').style.display = 'block';
         document.getElementById('edit-photo-text').style.display    = 'none';
       };
@@ -709,7 +706,6 @@
 
     userFoto = editPhotoBase64;
 
-    // Intentar actualizar en el backend
     try {
       const res = await fetch(`${API}/api/update_profile`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -725,7 +721,6 @@
       console.log("Perfil actualizado solo localmente.");
     }
 
-    // Si el alias cambió, migrar datos locales a la nueva clave
     if (nuevoAlias !== userName) {
       const data = getLocalData(userName);
       setLocalData(nuevoAlias, data || { favs: [], reqs: [], foto: null, nombre: userNombre, apellido: userApellido, email: userEmail });
@@ -734,7 +729,6 @@
       localStorage.setItem('pawsUser', userName);
     }
 
-    // Guardar foto y demás en la clave actualizada
     const current = getLocalData(userName) || {};
     current.foto     = userFoto;
     current.nombre   = userNombre;
@@ -742,19 +736,16 @@
     current.email    = userEmail;
     setLocalData(userName, current);
 
-    // Refrescar UI
     actualizarUI();
 
     btn.innerText = "Guardar Cambios";
     cerrarVista('s-edit-profile');
   }
 
-  // ── CERRAR SESIÓN ──
   function cerrarSesion() {
     userName = ''; userNombre = ''; userApellido = ''; userEmail = ''; userFoto = null;
     solis = []; savedIds.clear();
 
-    // Limpiar formularios
     ['log-user','log-pass','reg-nombre','reg-apellido','reg-user','reg-email','reg-pass']
       .forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
 
@@ -764,7 +755,6 @@
     document.getElementById('s-onboard').classList.add('active');
     localStorage.removeItem('pawsUser');
 
-    // Limpiar foto e info del perfil
     document.getElementById('nav-profile-pic').innerHTML = '👤';
     document.getElementById('prof-avatar').innerHTML     = '👤';
     document.getElementById('prof-name').innerText       = 'Usuario';
@@ -773,12 +763,10 @@
     document.getElementById('fav-badge').classList.remove('show');
   }
 
-  // ── SINCRONIZAR CON LA NUBE ──
   async function sincronizarNube() {
     if (!userName) return;
     const favs = Array.from(savedIds);
 
-    // Actualizar localStorage incluyendo siempre nombre/apellido
     const current = getLocalData(userName) || {};
     current.favs     = favs;
     current.reqs     = solis;
@@ -796,7 +784,6 @@
     } catch(e) { console.log("Sincronización con nube pendiente."); }
   }
 
-  // ── CARGA PRINCIPAL ──
   function cargar() {
     filtrar(); renderPostular(); renderSaved(); renderSeg();
     fetch(`${API}/api/mascotas`).then(res => res.json()).then(data => {
@@ -883,7 +870,6 @@
     });
   }
 
-  // ── ADMIN ──
   function loginAdmin() {
     if (document.getElementById('adm-pass').value === 'admin123') {
       document.getElementById('adm-pass').value = '';
@@ -921,7 +907,7 @@
       const reader = new FileReader();
       reader.onload = function(e) {
         currentPhotoBase64 = e.target.result;
-        document.getElementById('photo-preview').src           = currentPhotoBase64;
+        document.getElementById('photo-preview').src             = currentPhotoBase64;
         document.getElementById('photo-preview').style.display = 'block';
         document.getElementById('photo-preview-text').style.display = 'none';
       };
@@ -958,7 +944,6 @@
     btn.innerText = "Guardar y Publicar";
   }
 
-  // ── FLUJO DE ADOPCIÓN ──
   function abrirDetalle(id) {
     const p = allPets.find(x => x.id === id); if (!p) return; curPet = p;
     document.getElementById('det-hero').innerHTML    = getMedia(p);
@@ -974,7 +959,6 @@
   function abrirForm() {
     if (!curPet) return;
     document.getElementById('form-pet').innerText = curPet.name;
-    // Pre-llenar con nombre REAL (nombre + apellido), no el alias
     const nombreCompleto = [userNombre, userApellido].filter(Boolean).join(' ');
     document.getElementById('f-nom').value   = nombreCompleto || userName;
     document.getElementById('f-email').value = userEmail || '';
@@ -1029,7 +1013,6 @@
     }
   }
 
-  // ── CALENDARIO ──
   function renderCalendario() {
     const m = calDate.getMonth(), y = calDate.getFullYear();
     const monthNames = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
@@ -1059,7 +1042,6 @@
     sincronizarNube(); cerrarVista('s-appt'); abrirTL(solIdx); renderSeg();
   }
 
-  // ── CHAT BOT ──
   async function sendChat() {
     const inp = document.getElementById('chat-in');
     const msg = inp.value.trim(); if (!msg) return;
@@ -1092,17 +1074,12 @@
     }
   }
 
-  // ── AUTO-LOGIN AL CARGAR ──
   window.onload = () => {
     const sesionActiva = localStorage.getItem('pawsUser');
     if (sesionActiva) {
-      // Pre-llenar el campo de usuario para facilitar el inicio de sesión
       document.getElementById('log-user').value = sesionActiva;
-
-      // Intentar restaurar la sesión automáticamente si hay datos locales
       const localData = getLocalData(sesionActiva);
       if (localData && localData.nombre) {
-        // Hay datos guardados: restaurar sesión sin necesidad de contraseña
         userName     = sesionActiva;
         userNombre   = localData.nombre   || '';
         userApellido = localData.apellido || '';
@@ -1113,8 +1090,9 @@
 
         actualizarUI();
         document.getElementById('s-onboard').classList.remove('active');
-        document.getElementById('main-layout').classList.add('active');
-        cargar();
+        
+        // Entrar a la concientización también en auto-login
+        document.getElementById('s-awareness').classList.add('active');
       }
     }
   };
